@@ -89,6 +89,26 @@ def base2_7_decoder(cipher):
         plaintext += chr(int(token, 2))
     return plaintext
 
+# base2-space
+def base2_space_encoder(plaintext):
+    cipher = ''
+    for c in plaintext:
+        if len(cipher) != 0:
+            cipher += ' '
+        encoded_char = int_to_base(ord(c), base2_alphabet, 8)
+        while encoded_char[0] == '0' and len(encoded_char) > 1:
+            encoded_char = encoded_char[1:]
+        cipher += encoded_char
+    return cipher
+
+def base2_space_decoder(cipher):
+    plaintext = ''
+    cipher = cipher.replace('\n', ' ')
+    tokens = cipher.split(' ')
+    for token in tokens:
+        plaintext += chr(int(token, 2))
+    return plaintext
+
 # base10
 base10_alphabet = string.digits
 def base10_encoder(plaintext):
@@ -320,10 +340,16 @@ def base85_decoder(cipher):
         plaintext = plaintext[0:-to_remove]
     return plaintext
 
+# reverse
+def reverse(str):
+    str = str[::-1]
+    return str
+
 # base tab
 all_bases = [
     ['2',  'base2',  base2_encoder,  base2_decoder,  base2_alphabet,  None],
     ['2-7',  'base2-7',  base2_7_encoder,  base2_7_decoder,  base2_alphabet,  None],
+    ['2-s',  'base2-space',  base2_space_encoder,  base2_space_decoder,  base2_alphabet,  None],
     ['10',  'base10',  base10_encoder,  base10_decoder,  base10_alphabet,  None],
     ['16', 'base16', base16_encoder, base16_decoder, base16_alphabet, None],
     ['32', 'base32', base32_encoder, base32_decoder, base32_alphabet, base32_complement],
@@ -339,6 +365,11 @@ ENCODER = 2
 DECODER = 3
 ALPHABET = 4
 COMPLEMENT = 5
+
+# modification tab
+all_modifications = [
+    ['r', 'reverse', reverse]
+]
 
 # get base functions
 def get_base_data(base_name):
@@ -409,6 +440,27 @@ def main_decoder(cipher, bases, display):
     return plaintext
 
 # main cracker
+def test_all_bases(cipher_in_work, base_order, bases_order):
+    in_base = False
+    for base_data in all_bases:
+        if not is_base(cipher_in_work, base_data):
+            continue
+        # try to decode in base
+        try:
+            plaintext = base_data[DECODER](cipher_in_work)
+        except:
+            continue
+        if plaintext is None:
+            continue
+        # check if plaintext is printable
+        printable_percentage = is_printable(plaintext)
+        if printable_percentage > 0.90:
+            in_base = True
+            tmp_base_order = base_order[:]
+            tmp_base_order.insert(0, [base_data[FULL_NAME], plaintext])
+            bases_order.append(tmp_base_order)
+    return in_base
+
 def main_cracker(cipher):
     find_one_decode = False
     bases_order = []
@@ -424,24 +476,9 @@ def main_cracker(cipher):
             continue
 
         # test all bases
-        in_base = False
-        for base_data in all_bases:
-            if not is_base(cipher_in_work, base_data):
-                continue
-            # try to decode in base
-            try:
-                plaintext = base_data[DECODER](cipher_in_work)
-            except:
-                continue
-            if plaintext is None:
-                continue
-            # check if plaintext is printable
-            printable_percentage = is_printable(plaintext)
-            if printable_percentage > 0.90:
-                in_base = True
-                tmp_base_order = base_order[:]
-                tmp_base_order.insert(0, [base_data[FULL_NAME], plaintext])
-                bases_order.append(tmp_base_order)
+        in_base = test_all_bases(cipher_in_work, base_order, bases_order)
+
+        # apply all modifications:
 
         # find one plaintext
         decode_bases = []
